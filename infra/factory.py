@@ -1,6 +1,7 @@
 import os
 from typing import Dict, Any
 from dotenv import load_dotenv
+import torch
 
 # Load environment variables from .env file
 load_dotenv()
@@ -29,12 +30,22 @@ class InfraFactory:
                 "region": os.getenv("GCP_REGION")
             }
         else:
-            return {
-                "provider": "vllm",
-                "base_url": os.getenv("VLLM_API_BASE_URL", "http://localhost:8000/v1"),
-                "model_name": os.getenv("LOCAL_MODEL_NAME", "meta-llama/Meta-Llama-3-8B-Instruct"),
-                "api_key": os.getenv("VLLM_API_KEY", "local")
-            }
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"--- Using Device: {device} ---")
+            if device =='cuda':
+                return {
+                    "provider": "vllm",
+                    "base_url": os.getenv("VLLM_API_BASE_URL", "http://localhost:8000/v1"),
+                    "model_name": os.getenv("VLLM_LOCAL_MODEL_NAME", "meta-llama/Meta-Llama-3-8B-Instruct"),
+                    "api_key": os.getenv("VLLM_API_KEY", "local")
+                }
+            else:
+                return {
+                    "provider": "ollama",
+                    "base_url": os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434/v1"),
+                    "model_name": os.getenv("OLLAMA_LOCAL_MODEL_NAME", "llama3.2"),
+                    "api_key": os.getenv("OLLAMA_API_KEY", "ollama")
+                }
     
     def get_vector_db_config(self) -> Dict[str, str]:
         """Return vector DB configuration based on deployment mode."""

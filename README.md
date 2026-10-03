@@ -16,7 +16,7 @@ This application is designed with an `InfraFactory` that allows zero-downtime sw
 
 1. **CLOUD Mode (Managed):** Uses Google Vertex AI Embeddings and Gemini 1.5 Pro inference. Designed for high scalability and speed.
 
-2. **OFFLINE Mode (Edge / Air-Gapped):** Uses local HuggingFace CPU-friendly embeddings (`BAAI/bge-small-en-v1.5`), local Qdrant, and local Neo4j Docker containers. Designed for maximum privacy and air-gapped shop floor environments.
+2. **OFFLINE Mode (Edge / CPU-Friendly):** Uses local HuggingFace CPU embeddings, local Qdrant, Neo4j Docker, and Ollama (`llama3.1`). **The system automatically detects if a GPU is missing and falls back to CPU-compatible models, meaning this entire enterprise application can run 100% offline on a standard laptop CPU!**
 ---
 
 ## 🛠️ Setup & Installation
@@ -47,11 +47,13 @@ Copy the environment template and configure your deployment mode:
 cp .env.example .env
 ```
 *Make sure `DEPLOYMENT_MODE=OFFLINE` is set in `.env` if you are testing locally.*
+
 ### 3. Start Local Databases (Offline Mode)
 Spin up the local Neo4j graph database using Docker Compose:
 ```bash
 docker-compose up -d
 ```
+
 ### 4. Data Ingestion Pipeline (Phase 2)
 Before the AI Agents can run, we must fetch real-world automotive data and ingest it into our databases.
 **Step 4a: Fetch Raw Data**
@@ -69,10 +71,18 @@ Parses the structured DTC codes into Neo4j nodes (DTC -> Part -> Subsystem).
 ```bash
 python index/graph_ingest.py
 ```
+
+### 5. Running the Application (Phase 3)
+If you are running in OFFLINE mode on a CPU, you must start your local LLM engine first:
+1. Install [Ollama](https://ollama.com/) (If not available)
+2. Open a terminal and run: `ollama run llama3.1`
+3. Execute the LangGraph AI Workflow:
+```bash
+python run.py
+```
 ---
 
 ## 🔄 Workflow Architecture
-
 ```mermaid
 graph TD
     %% User Interaction
@@ -90,19 +100,21 @@ graph TD
         
         Reasoning --> Critique[Critique & Reflection Node]
         Critique --> |Refine| VectorRAG
+        Critique --> |Requires Web Info| WebSearch[Web Search Agent]
+        WebSearch --> Reasoning
+        
         Critique --> |Pass| Guardrails[NeMo Guardrails / Safety Node]
     end
     
     %% Retrieval Engine (LlamaIndex)
     subgraph LlamaIndex RAG Engine
-        VectorRAG --> VectorStore[(Vertex AI Vector Search)]
-        GraphRAG --> GraphStore[(Neo4j / Memgraph on GKE)]
+        VectorRAG --> VectorStore[(Qdrant / Vertex Search)]
+        GraphRAG --> GraphStore[(Neo4j)]
     end
     
     %% LLM & Memory
     subgraph Google Cloud & LLM
-        Reasoning --> Gemini[Vertex AI: Gemini 1.5 Pro]
-        Gemini --> KVCache[Vertex AI Context Caching]
+        Reasoning --> Gemini[Vertex AI / Local Ollama]
     end
     
     %% Safety & Evals
@@ -114,3 +126,4 @@ graph TD
         Telemetry[Traces & Logs] --> LangSmith[LangSmith / Vertex ML Metadata]
         EvalPipeline[Ragas Evaluation Pipeline] -.-> |Evaluates| Telemetry
     end
+```
