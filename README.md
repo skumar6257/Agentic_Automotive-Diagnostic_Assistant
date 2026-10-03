@@ -26,8 +26,8 @@ This application is designed with an `InfraFactory` that allows zero-downtime sw
 ### 1. Project Initialization
 Clone the repository:
 ```bash
-git clone https://github.com/skumar6257/Agentic_Automotive-Diagnostic-_Assistant
-cd Agentic_Automotive-Diagnostic-_Assistant
+git clone https://github.com/skumar6257/Agentic_Automotive-Diagnostic_Assistant
+cd Agentic_Automotive-Diagnostic_Assistant
 ```
 Set up a Python Virtual Environment:
 ```bash
