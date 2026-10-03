@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Don't copy local database blobs into the cloud Docker image
+data/processed/
+models/

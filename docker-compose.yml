@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  # The Graph Database
+  neo4j_db:
+    image: neo4j:latest
+    container_name: automotive_graph_db
+    ports:
+      - "7474:7474"  # Web UI Port
+      - "7687:7687"  # Bolt protocol Port (for Python)
+    environment:
+      - NEO4J_AUTH=neo4j/localpassword
+    volumes:
+      - ./data/processed/neo4j_data:/data  # Saves DB to disk so it survives restarts

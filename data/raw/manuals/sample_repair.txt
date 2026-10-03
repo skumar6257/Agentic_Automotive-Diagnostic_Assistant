@@ -1,0 +1,8 @@
+# Spark Plug Replacement Procedure
+To fix a P0300 code, you may need to replace the spark plugs. 
+Step 1: Disconnect the negative battery terminal.
+Step 2: Remove the engine cover.
+Step 3: Disconnect the ignition coil connectors.
+Step 4: Remove the ignition coils.
+Step 5: Use a 5/8 inch spark plug socket to remove the old spark plugs. 
+Torque Specification: Tighten new spark plugs to 18 ft-lbs.

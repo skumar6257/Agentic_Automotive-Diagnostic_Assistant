@@ -1,9 +1,6 @@
-# Agentic_Automotive-Diagnostic_Assistant
-# Enterprise Agentic Assistant for Automotive Diagnostics 🚗🧠
+# Agentic Automotive Diagnostic Assistant
 
-An enterprise-grade, agentic AI diagnostic system built to assist dealership technicians and fleet mechanics. This system intelligently cross-references structured diagnostic data (OBD-II fault codes) with deeply technical, unstructured documents (NHTSA Recalls, OEM Workshop Manuals, Technical Service Bulletins).
-
-By leveraging a cyclic agentic state machine, hybrid Graph+Vector retrieval, and advanced context caching, AutoDiag iteratively reasons through complex mechanical issues while strictly enforcing safety guardrails.
+An enterprise-grade, agentic AI workflow designed to diagnose automotive faults. This system utilizes a **Hybrid GraphRAG** architecture, combining the topological relationship mapping of a Graph Database (Neo4j) with the semantic search capabilities of a Vector Database (Qdrant/Vertex AI) to parse OBD-II Diagnostic Trouble Codes (DTCs), OEM repair manuals, and Technical Service Bulletins (TSBs).
 
 ## 🚀 Key Features
 
@@ -13,7 +10,68 @@ By leveraging a cyclic agentic state machine, hybrid Graph+Vector retrieval, and
 *   **Enterprise Safety Guardrails:** Integrated NeMo Guardrails intercept and block unsafe DIY advice (e.g., high-voltage EV battery handling without proper PPE).
 *   **LLMOps & Evaluation:** Offline CI/CD evaluation pipeline using Ragas to measure Context Precision, Faithfulness, and Answer Relevance.
 
-## 🏗 Architecture
+## 🏗 Architecture (Dual-Mode)
+
+This application is designed with an `InfraFactory` that allows zero-downtime switching between two deployment modes via a single environment variable (`DEPLOYMENT_MODE`):
+
+1. **CLOUD Mode (Managed):** Uses Google Vertex AI Embeddings and Gemini 1.5 Pro inference. Designed for high scalability and speed.
+
+2. **OFFLINE Mode (Edge / Air-Gapped):** Uses local HuggingFace CPU-friendly embeddings (`BAAI/bge-small-en-v1.5`), local Qdrant, and local Neo4j Docker containers. Designed for maximum privacy and air-gapped shop floor environments.
+---
+
+## 🛠️ Setup & Installation
+### Prerequisites
+- Python 3.10+
+- Docker Desktop (Required for Offline Graph Database)
+### 1. Project Initialization
+Clone the repository:
+```bash
+git clone https://github.com/skumar6257/Agentic_Automotive-Diagnostic-_Assistant
+cd Agentic_Automotive-Diagnostic-_Assistant
+```
+Set up a Python Virtual Environment:
+```bash
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Mac/Linux:
+source venv/bin/activate
+```
+Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+### 2. Environment Configuration
+Copy the environment template and configure your deployment mode:
+```bash
+cp .env.example .env
+```
+*Make sure `DEPLOYMENT_MODE=OFFLINE` is set in `.env` if you are testing locally.*
+### 3. Start Local Databases (Offline Mode)
+Spin up the local Neo4j graph database using Docker Compose:
+```bash
+docker-compose up -d
+```
+### 4. Data Ingestion Pipeline (Phase 2)
+Before the AI Agents can run, we must fetch real-world automotive data and ingest it into our databases.
+**Step 4a: Fetch Raw Data**
+Downloads real OBD-II DTC codes and TSBs from the NHTSA API.
+```bash
+python data/fetch_real_data.py
+```
+**Step 4b: Vector Database Ingestion (Unstructured Text)**
+Chunks the repair manuals and TSBs, generates embeddings, and saves the Vector DB to disk.
+```bash
+python index/vector_ingest.py
+```
+**Step 4c: Graph Database Ingestion (Topological Data)**
+Parses the structured DTC codes into Neo4j nodes (DTC -> Part -> Subsystem).
+```bash
+python index/graph_ingest.py
+```
+---
+
+## 🔄 Workflow Architecture
 
 ```mermaid
 graph TD

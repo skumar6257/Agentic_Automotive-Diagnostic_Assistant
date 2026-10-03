@@ -16,3 +16,15 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
+
+# --- Custom Ignored Directories ---
+
+# Ignore downloaded HuggingFace models, but keep the placeholder README
+models/*
+!models/README.md
+
+# Ignore the actual heavy database blobs (Neo4j and Qdrant)
+data/processed/*
+!data/processed/README.md
+
+
