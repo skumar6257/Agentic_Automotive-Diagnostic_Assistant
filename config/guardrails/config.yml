@@ -1,0 +1,26 @@
+models:
+  - type: main
+    engine: openai
+    model: llama3.1
+    parameters:
+      base_url: http://localhost:11434/v1
+      api_key: ollama
+
+  - type: embeddings
+    engine: FastEmbed
+    model: sentence-transformers/all-MiniLM-L6-v2
+
+models:
+  - type: main
+    engine: openai
+    model: llama3.1
+    parameters:
+      base_url: http://localhost:11434/v1
+      api_key: ollama
+
+rails:
+  dialog:
+    user_messages:
+      embeddings_only: True
+    bot_messages:
+      embeddings_only: True

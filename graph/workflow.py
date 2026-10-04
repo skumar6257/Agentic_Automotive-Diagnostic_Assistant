@@ -11,6 +11,7 @@ from graph.state import DiagnosticState
 from agents.retrievers import query_vector_agent, query_graph_agent
 from agents.planner import diagnostic_planner_agent, critique_agent
 from agents.search import web_search_agent
+from agents.guardrail import safety_guardrail_agent
 
 def build_workflow():
     print("--- Building LangGraph State Machine ---")
@@ -24,14 +25,35 @@ def build_workflow():
     workflow.add_node("web_search", web_search_agent)
     workflow.add_node("planner",diagnostic_planner_agent)
     workflow.add_node("critique",critique_agent)
+    workflow.add_node("safety_guardrail",safety_guardrail_agent)
 
     # 3. Define the Edges (The Flow)
-    workflow.set_entry_point("graph_retriever")
+    workflow.set_entry_point("safety_guardrail")
     workflow.add_edge("graph_retriever","vector_retriever")
     workflow.add_edge("vector_retriever","planner")
     workflow.add_edge("planner","critique")
     # After a web search, always go back to the planner to rewrite the plan
     workflow.add_edge("web_search", "planner")
+
+    def guardrail_router(state: DiagnosticState):
+        """
+        Decides whether to continue to the retriever (safe) or end (unsafe).
+        """
+        if state.get("safety_cleared"):
+            print("-> Guardrail: Input is safe. Proceeding to retriever.")
+            return "graph_retriever"  # Go to the retriever node
+        else:
+            print("-> Guardrail: Unsafe input detected. Halting workflow.")
+            return "end"  # End the workflow
+
+    workflow.add_conditional_edges(
+        "safety_guardrail",
+        guardrail_router,
+        {
+            "graph_retriever": "graph_retriever",
+            "end": END
+        }
+    )
     
     # 5. Define the Conditional Edge (The loop!)
     def routing_logic(state: DiagnosticState):

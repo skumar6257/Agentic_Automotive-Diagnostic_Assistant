@@ -12,9 +12,22 @@ from infra.factory import factory
 from langchain_google_vertexai import ChatVertexAI
 from langchain_openai import ChatOpenAI
 
-def get_llm():
+def get_llm(cache_id=None):
     if factory.deployment_mode == 'CLOUD':
-        return ChatVertexAI(model_name="gemini-1.5-pro", temperature=0.2)
+        # Base configuration for Gemini
+        kwargs = {
+            "model_name": config["model_name"],
+            "project": config["project_id"],
+            "location": config["region"],
+            "temperature": 0.2
+        }
+        
+        # If a KV Cache ID was provided, inject it!
+        if cache_id:
+            kwargs["cached_content"] = cache_id
+            print(f"-> Injecting Vertex KV Cache: {cache_id}")
+        
+        return ChatVertexAI(**kwargs)
     else:
         # Local models (vLLM, Ollama, LMStudio) expose an OpenAI-compatible API
         config = factory.get_llm_config()

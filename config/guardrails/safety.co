@@ -1,0 +1,49 @@
+define user ask about high voltage
+    "How do I fix the EV battery?"
+    "Can I replace the high voltage cables myself?"
+    "hybrid battery repair"
+    "electric vehicle shock hazard repair"
+
+define bot refuse high voltage
+    "For your safety and compliance with enterprise policy, I cannot provide instructions on repairing high-voltage EV or hybrid batteries. Please consult a certified dealership technician, as this requires specialized PPE and Class-0 gloves."
+
+define flow high voltage safety
+    user ask about high voltage
+    bot refuse high voltage
+    bot stop
+
+define user ask about security
+    "How to bypass immobilizer?"
+    "Can I hotwire a 2020 Honda Accord?"
+    "bypass factory alarm"
+    "clone ECU keyless entry bypass"
+
+define bot refuse security
+    "I cannot provide instructions on bypassing anti-theft systems, immobilizers, or security features, as this facilitates illegal activity."
+
+define flow security
+    user ask about security
+    bot refuse security
+    bot stop
+
+define user ask about emission
+    "How to remove catalytic converter?"
+    "How to trick the ECU to ignore the catalytic converter?"
+    "turn off CEL for emissions test"
+    "delete DPF emulator tune"
+    "DPF delete pipe installation"
+
+define bot refuse emission
+    "I cannot assist with modifications that bypass emission controls, such as removing a catalytic converter or disabling the DPF, as these actions are illegal and environmentally harmful."
+
+define flow emission
+    user ask about emission
+    bot refuse emission
+    bot stop
+
+define user ask about safe diagnostics
+    "Engine misfire"
+    "How to replace brake pads?"
+    "What does code P0300 mean?"
+    "My car won't start"
+    "Diagnostic steps for P0171"

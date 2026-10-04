@@ -54,7 +54,7 @@ Spin up the local Neo4j graph database using Docker Compose:
 docker-compose up -d
 ```
 
-### 4. Data Ingestion Pipeline (Phase 2)
+### 4. Data Ingestion Pipeline
 Before the AI Agents can run, we must fetch real-world automotive data and ingest it into our databases.
 **Step 4a: Fetch Raw Data**
 Downloads real OBD-II DTC codes and TSBs from the NHTSA API.
@@ -72,7 +72,7 @@ Parses the structured DTC codes into Neo4j nodes (DTC -> Part -> Subsystem).
 python index/graph_ingest.py
 ```
 
-### 5. Running the Application (Phase 3)
+### 5. Running the Application
 If you are running in OFFLINE mode on a CPU, you must start your local LLM engine first:
 1. Install [Ollama](https://ollama.com/) (If not available)
 2. Open a terminal and run: `ollama run llama3.1`
@@ -80,6 +80,27 @@ If you are running in OFFLINE mode on a CPU, you must start your local LLM engin
 ```bash
 python run.py
 ```
+
+### 6. Enterprise Guardrails & Context Caching 
+This application includes enterprise-grade guardrails and context caching to ensure safe and cheap inference.
+
+**Safety Guardrails (NeMo):**
+The system intercepts user queries using NVIDIA NeMo Guardrails. 
+To modify safety rules (e.g., preventing high-voltage or emissions bypass advice), edit the Colang file:
+`config/guardrails/safety.co`
+*(Note: To run NeMo efficiently on CPUs without LLM latency, it is configured in `embeddings_only: True` mode in `config.yml`.)*
+
+**KV Context Caching:**
+- **CLOUD Mode:** If using Google Vertex AI (`DEPLOYMENT_MODE=CLOUD`), massive OEM manuals are cached using `infra/cache_manager.py` to drastically reduce token costs.
+- **OFFLINE Mode (GPU):** If deploying locally with an NVIDIA GPU, install vLLM via pip (`pip install vllm`). Start your inference engine with Prompt Caching enabled:
+  ```bash
+  pip install vllm
+  ```
+  
+  ```bash
+  python -m vllm.entrypoints.openai.api_server --model meta-llama/Meta-Llama-3-8B-Instruct --enable-prefix-caching
+  ```
+
 ---
 
 ## 🔄 Workflow Architecture
