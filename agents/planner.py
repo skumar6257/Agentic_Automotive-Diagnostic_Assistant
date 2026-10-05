@@ -13,6 +13,7 @@ from langchain_google_vertexai import ChatVertexAI
 from langchain_openai import ChatOpenAI
 
 def get_llm(cache_id=None):
+    config = factory.get_llm_config() 
     if factory.deployment_mode == 'CLOUD':
         # Base configuration for Gemini
         kwargs = {
@@ -30,7 +31,6 @@ def get_llm(cache_id=None):
         return ChatVertexAI(**kwargs)
     else:
         # Local models (vLLM, Ollama, LMStudio) expose an OpenAI-compatible API
-        config = factory.get_llm_config()
         return ChatOpenAI(
             base_url=config["base_url"],
             api_key=config["api_key"],

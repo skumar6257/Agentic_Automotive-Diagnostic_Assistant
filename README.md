@@ -10,6 +10,12 @@ An enterprise-grade, agentic AI workflow designed to diagnose automotive faults.
 *   **Enterprise Safety Guardrails:** Integrated NeMo Guardrails intercept and block unsafe DIY advice (e.g., high-voltage EV battery handling without proper PPE).
 *   **LLMOps & Evaluation:** Offline CI/CD evaluation pipeline using Ragas to measure Context Precision, Faithfulness, and Answer Relevance.
 
+## 🖥️ UI Showcase
+The frontend is built using Streamlit, providing an interactive interface for technicians to input DTC codes and symptoms, while seamlessly toggling between Cloud and Local Edge computing modes.
+![Technician Input](assets/UI_page1.png)
+![Diagnostic Reasoning](assets/UI_page2.png)
+![Retrieved Context](assets/UI_page3.png)
+
 ## 🏗 Architecture (Dual-Mode)
 
 This application is designed with an `InfraFactory` that allows zero-downtime switching between two deployment modes via a single environment variable (`DEPLOYMENT_MODE`):
@@ -72,16 +78,7 @@ Parses the structured DTC codes into Neo4j nodes (DTC -> Part -> Subsystem).
 python index/graph_ingest.py
 ```
 
-### 5. Running the Application
-If you are running in OFFLINE mode on a CPU, you must start your local LLM engine first:
-1. Install [Ollama](https://ollama.com/) (If not available)
-2. Open a terminal and run: `ollama run llama3.1`
-3. Execute the LangGraph AI Workflow:
-```bash
-python run.py
-```
-
-### 6. Enterprise Guardrails & Context Caching 
+### 5. Enterprise Guardrails & Context Caching 
 This application includes enterprise-grade guardrails and context caching to ensure safe and cheap inference.
 
 **Safety Guardrails (NeMo):**
@@ -100,6 +97,29 @@ To modify safety rules (e.g., preventing high-voltage or emissions bypass advice
   ```bash
   python -m vllm.entrypoints.openai.api_server --model meta-llama/Meta-Llama-3-8B-Instruct --enable-prefix-caching
   ```
+
+### 6. Running the Application (FastAPI & Streamlit UI)
+If you are running in OFFLINE mode on a CPU, you must start your local LLM engine first:
+1. Install [Ollama](https://ollama.com/) (If not available)
+2. Open a terminal and run: `ollama run llama3.1`
+
+This application features a full microservices architecture (FastAPI backend + Streamlit frontend).
+**Terminal 1 (Backend API):**
+```bash
+uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
+```
+
+**Terminal 2 (Frontend UI):**
+```bash
+streamlit run frontend/app.py
+```
+
+### 7. LLMOps & Automated Evaluation (Ragas)
+To mathematically evaluate the quality of the LLM responses (Faithfulness, Context Precision, Answer Relevancy), we utilize the **Ragas** framework. 
+Run the offline CPU evaluation script:
+```bash
+python eval/evaluate.py
+```
 
 ---
 

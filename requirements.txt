@@ -14,3 +14,8 @@ langgraph==1.2.12
 langchain-openai==1.6.7
 duckduckgo-search==8.1.1
 nemoguardrails==0.24.1
+ragas==0.1.7
+datasets==2.19.0
+fastapi==0.142.2
+uvicorn==0.54.0
+streamlit==1.65.0
