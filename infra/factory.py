@@ -14,7 +14,8 @@ class InfraFactory:
 
     def __init__(self):
         # Deployment Router
-        self.deployment_mode = os.getenv("DEPLOYMENT_MODE", "CLOUD").upper() 
+        self.deployment_mode = os.getenv("DEPLOYMENT_MODE", "CLOUD").upper()
+        self.model_override = None # Optional override from API
         if self.deployment_mode not in ["CLOUD", "OFFLINE"]: 
             raise ValueError(f"Invalid DEPLOYMENT_MODE: {self.deployment_mode}. Must be CLOUD or OFFLINE.")
         else:
@@ -23,9 +24,11 @@ class InfraFactory:
     def get_llm_config(self) -> Dict[str, Any]:
         """Return LLM configuration based on deployment mode."""
         if self.deployment_mode == "CLOUD":
+            # Use dynamic override if provided, else fallback to env, else hardcode
+            model = self.model_override if self.model_override else os.getenv("VERTEX_MODEL_NAME", "gemini-2.5-pro")
             return {
                 "provider": "vertex_ai",
-                "model_name": "gemini-1.5-pro",
+                "model_name": model,
                 "project_id": os.getenv("GCP_PROJECT_ID"),
                 "region": os.getenv("GCP_REGION")
             }
@@ -51,9 +54,9 @@ class InfraFactory:
         """Return vector DB configuration based on deployment mode."""
         if self.deployment_mode == "CLOUD":
             return {
-                "provider": "vertex_vector_search",
-                "index_id": os.getenv("VERTEX_VECTOR_INDEX_ID", ""),
-                "endpoint_id": os.getenv("VERTEX_VECTOR_ENDPOINT_ID", ""),
+                "provider": "qdrant_cloud",
+                "url": os.getenv("QDRANT_CLOUD_URL", ""),
+                "api_key": os.getenv("QDRANT_CLOUD_API_KEY", ""),
             }
         else:
             return {

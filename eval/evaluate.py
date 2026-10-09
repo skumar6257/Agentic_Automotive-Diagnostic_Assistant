@@ -17,7 +17,7 @@ sys.modules['langchain.pydantic_v1'] = pydantic.v1       # <-- ADD THIS LINE
 # --------------------------------------------------
 
 from ragas import evaluate
-from ragas.metrics import faithfulness, answer_relevancy
+from ragas.metrics import faithfulness, answer_relevancy, context_recall 
 from graph.workflow import build_workflow
 from agents.planner import get_llm
 from langchain_community.embeddings import FastEmbedEmbeddings
@@ -25,12 +25,15 @@ from langchain_community.embeddings import FastEmbedEmbeddings
 def run_evaluation():
     print("--- [Ragas] Starting Offline LLMOps Evaluation Pipeline ---")
     
-    # 1. Define our synthetic test cases (Ground Truth)
+    # 1. Define our synthetic test cases (Expanded for Phase 6)
+    dtc_codes = ["P0300", "P0171"]
     questions = [
         "Engine misfire, rough idle, check engine light flashing.",
+        "System too lean, poor acceleration, P0171 code."
     ]
     ground_truths = [
-        "A flashing check engine light with a rough idle typically indicates a severe misfire (P0300). Immediate action is required to prevent catalytic converter damage. Check spark plugs and ignition coils."
+        "A flashing check engine light with a rough idle typically indicates a severe misfire (P0300). Immediate action is required to prevent catalytic converter damage. Check spark plugs and ignition coils.",
+        "A P0171 code indicates a lean condition. Inspect for vacuum leaks, a faulty MAF sensor, or low fuel pressure."
     ]
 
     # 2. Run the LangGraph Workflow to generate answers
@@ -42,7 +45,7 @@ def run_evaluation():
         print(f"\nEvaluating Query: {q}")
         initial_state = {
             "vehicle_info": "2018 Toyota Camry",
-            "dtc_code": "P0300",
+            "dtc_code": dtc_codes[idx],
             "symptoms": q
         }
 
@@ -84,6 +87,7 @@ def run_evaluation():
         metrics=[
             faithfulness,
             answer_relevancy,
+            context_recall
         ],
         llm=judge_llm,
         embeddings=judge_embeddings

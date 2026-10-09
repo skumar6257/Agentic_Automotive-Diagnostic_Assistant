@@ -1,14 +1,41 @@
 version: '3.8'
 
 services:
-  # The Graph Database
+  # 1. Graph Database (Topological Mapping)
   neo4j_db:
     image: neo4j:latest
     container_name: automotive_graph_db
     ports:
-      - "7474:7474"  # Web UI Port
-      - "7687:7687"  # Bolt protocol Port (for Python)
+      - "7474:7474"
+      - "7687:7687"
     environment:
       - NEO4J_AUTH=neo4j/localpassword
     volumes:
-      - ./data/processed/neo4j_data:/data  # Saves DB to disk so it survives restarts
+      - ./data/processed/neo4j_data:/data
+
+  # 2. Vector Database (Unstructured Manuals)
+  qdrant_db:
+    image: qdrant/qdrant:latest
+    container_name: automotive_vector_db
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./data/processed/qdrant_db:/qdrant/storage
+
+  # 3. Offline GPU Inference Engine (vLLM)
+  # NOTE: Requires host machine to have NVIDIA drivers and nvidia-docker installed
+  vllm_engine:
+    image: vllm/vllm-openai:latest
+    container_name: automotive_vllm
+    ports:
+      - "8080:8000"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+    command: --model meta-llama/Meta-Llama-3-8B-Instruct --enable-prefix-caching
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

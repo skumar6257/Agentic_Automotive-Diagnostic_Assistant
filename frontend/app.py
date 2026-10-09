@@ -1,5 +1,9 @@
 import streamlit as st
 import requests
+import os
+from dotenv import load_dotenv
+                
+load_dotenv()
 
 st.set_page_config(page_title="AI Diagnostic Assistant", page_icon="🚗", layout="wide")
 
@@ -20,8 +24,14 @@ with st.sidebar:
 
     if deployment_mode == "OFFLINE":
         st.success("🔒 Processing securely on local Edge device (vLLM/Ollama).")
+        model_name = None
     else:
         st.info("☁️ Processing in Cloud (Google Vertex AI) with KV Caching.")
+        model_name = st.selectbox(
+            "Select Vertex AI Model:",
+            ("gemini-2.5-pro", "gemini-1.5-flash-001", "gemini-1.0-pro"),
+            index=0
+        )
 
 # Main Form
 with st.form("diagnostic_form"):
@@ -45,11 +55,24 @@ if submit:
                     "vehicle_info": vehicle_info,
                     "dtc_code": dtc_code,
                     "symptoms": symptoms,
-                    "deployment_mode": deployment_mode
+                    "deployment_mode": deployment_mode,
+                    "model_name": model_name
                 }
 
                 # Call our FastAPI backend
-                response = requests.post("http://localhost:8000/diagnose", json=payload)
+                # response = requests.post("http://localhost:8000/diagnose", json=payload)
+                # response = requests.post("https://agentic-diagnostic-api-qlbqtryffq-uc.a.run.app/diagnose", json=payload)
+
+                # 1. Dynamically select the API URL based on the UI toggle!
+                if deployment_mode == "CLOUD":
+                    api_url = os.getenv("CLOUD_API_URL")
+                    # api_url = os.getenv("LOCAL_API_URL", "http://localhost:8000/diagnose")
+                else:
+                    api_url = os.getenv("LOCAL_API_URL", "http://localhost:8000/diagnose")
+                
+                # 2. Call the dynamically selected backend
+                response = requests.post(api_url, json=payload)
+
 
                 if response.status_code == 200:
                     data = response.json()
@@ -59,6 +82,6 @@ if submit:
                     st.error(f"Backend Error: {response.text}")
 
             except Exception as e:
-                st.error(f"Failed to connect to backend. Is the FastAPI server running?")
+                st.error(f"Failed to connect to backend. True Error: {str(e)}")
 
                 

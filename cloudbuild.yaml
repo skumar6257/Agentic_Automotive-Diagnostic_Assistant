@@ -1,0 +1,10 @@
+steps:
+  # Step 1: Build the Docker Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/diagnostic-api:latest', '.']
+
+  # Step 2: Push the Image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/diagnostic-api:latest']
+images:
+  - 'gcr.io/$PROJECT_ID/diagnostic-api:latest'

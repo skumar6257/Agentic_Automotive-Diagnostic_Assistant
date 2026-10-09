@@ -1,14 +1,16 @@
-# Agentic Automotive Diagnostic Assistant
+# 🚗 Agentic Automotive Diagnostic Assistant
 
-An enterprise-grade, agentic AI workflow designed to diagnose automotive faults. This system utilizes a **Hybrid GraphRAG** architecture, combining the topological relationship mapping of a Graph Database (Neo4j) with the semantic search capabilities of a Vector Database (Qdrant/Vertex AI) to parse OBD-II Diagnostic Trouble Codes (DTCs), OEM repair manuals, and Technical Service Bulletins (TSBs).
+An enterprise-grade, dual-mode (Cloud & Offline) AI Assistant for automotive diagnostics. This system utilizes a multi-agent orchestrated workflow, integrating GraphRAG (Neo4j) and Vector Search (Qdrant) to intelligently retrieve and analyze automotive repair manuals and DTC (Diagnostic Trouble Code) context.
 
-## 🚀 Key Features
+## ✨ Key Features
 
-*   **Cyclic Agentic Reasoning:** Uses LangGraph to orchestrate reasoning, retrieval, critique, and reflection loops rather than a brittle linear pipeline.
+*   **Dual-Mode Architecture**: Run completely offline on local CPU/GPUs (using vLLM/Ollama), or seamlessly switch to Google Cloud Serverless (Vertex AI / Gemini).
+*   **Agentic Workflow**: Powered by LangGraph to orchestrate Planning, Retrieval, and Diagnostic Formulation agents.
 *   **Hybrid RAG (Graph + Vector):** Combines LlamaIndex `PropertyGraphIndex` (Neo4j) for traversing multi-hop part relationships with Vertex AI Vector Search for retrieving dense unstructured manual steps.
-*   **Cost-Optimized Context:** Utilizes Gemini 1.5 Pro with Vertex AI Context (KV) Caching to load massive OEM workshop manuals into memory once, drastically reducing per-query token costs and latency.
-*   **Enterprise Safety Guardrails:** Integrated NeMo Guardrails intercept and block unsafe DIY advice (e.g., high-voltage EV battery handling without proper PPE).
-*   **LLMOps & Evaluation:** Offline CI/CD evaluation pipeline using Ragas to measure Context Precision, Faithfulness, and Answer Relevance.
+*   **Cost-Optimized Context**: Utilizes Google Vertex AI (Gemini 2.5 Pro) with Vertex AI Context (KV) Caching to load massive OEM workshop manuals into memory once, drastically reducing per-query token costs and latency.
+*   **Dynamic LLM Selection**: Switch instantly between Vertex AI models (e.g. Gemini 2.5 Pro, Gemini 1.5 Flash) directly from the Streamlit UI with zero infrastructure redeployment.
+*   **Enterprise Safety Guardrails**: Integrated NeMo Guardrails intercept and block unsafe DIY advice (e.g., high-voltage EV battery handling without proper PPE).
+*   **Microservices & Managed Cloud**: A decoupled FastAPI backend, Streamlit frontend, and fully managed cloud databases (Neo4j AuraDB & Qdrant Cloud).
 
 ## 🖥️ UI Showcase
 The frontend is built using Streamlit, providing an interactive interface for technicians to input DTC codes and symptoms, while seamlessly toggling between Cloud and Local Edge computing modes.
@@ -20,7 +22,7 @@ The frontend is built using Streamlit, providing an interactive interface for te
 
 This application is designed with an `InfraFactory` that allows zero-downtime switching between two deployment modes via a single environment variable (`DEPLOYMENT_MODE`):
 
-1. **CLOUD Mode (Managed):** Uses Google Vertex AI Embeddings and Gemini 1.5 Pro inference. Designed for high scalability and speed.
+1. **CLOUD Mode (Managed):** Uses Google Vertex AI (Gemini 2.5 Pro, 1.5 Flash), Neo4j AuraDB, and Qdrant Cloud. Designed for high scalability, speed, and serverless enterprise deployments.
 
 2. **OFFLINE Mode (Edge / CPU-Friendly):** Uses local HuggingFace CPU embeddings, local Qdrant, Neo4j Docker, and Ollama (`llama3.1`). **The system automatically detects if a GPU is missing and falls back to CPU-compatible models, meaning this entire enterprise application can run 100% offline on a standard laptop CPU!**
 ---
@@ -28,7 +30,9 @@ This application is designed with an `InfraFactory` that allows zero-downtime sw
 ## 🛠️ Setup & Installation
 ### Prerequisites
 - Python 3.10+
-- Docker Desktop (Required for Offline Graph Database)
+- Docker & Docker Compose (for local database stacks)
+- `gcloud` CLI & Terraform (for cloud deployment)
+
 ### 1. Project Initialization
 Clone the repository:
 ```bash
@@ -52,7 +56,7 @@ Copy the environment template and configure your deployment mode:
 ```bash
 cp .env.example .env
 ```
-*Make sure `DEPLOYMENT_MODE=OFFLINE` is set in `.env` if you are testing locally.*
+*Open `.env` and fill in your API keys, local URLs, and Cloud Endpoints. Make sure `DEPLOYMENT_MODE=OFFLINE` is set in `.env` if you are testing locally.*
 
 ### 3. Start Local Databases (Offline Mode)
 Spin up the local Neo4j graph database using Docker Compose:
@@ -114,14 +118,33 @@ uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
 streamlit run frontend/app.py
 ```
 
-### 7. LLMOps & Automated Evaluation (Ragas)
+### 7. ☁️ Running in the CLOUD (Google Cloud Platform)
+*Leverages Google Cloud Run, Vertex AI, and managed cloud databases for infinite scalability.*
+
+**1. Deploy the Backend Infrastructure:** For detailed instructions on how to build the Docker image, configure IAM permissions, and run Terraform, please read the [Cloud Deployment Guide](README_CLOUD.md).
+
+**2. Start the Frontend UI (Local):**
+```bash
+streamlit run frontend/app.py
+```
+
+*Go to the UI and ensure the toggle is set to CLOUD. The frontend will automatically route requests to your live Serverless endpoint!*
+
+### 8. LLMOps & Automated Evaluation (Ragas)
 To mathematically evaluate the quality of the LLM responses (Faithfulness, Context Precision, Answer Relevancy), we utilize the **Ragas** framework. 
 Run the offline CPU evaluation script:
 ```bash
 python eval/evaluate.py
 ```
-
 ---
+
+## 📂 Project Structure
+
+- `agents/` - LangChain agent definitions (Planner, Retriever, Formulator).
+- `backend/` - FastAPI gateway endpoints.
+- `frontend/` - Streamlit User Interface.
+- `infra/` - InfraFactory logic for dynamic Cloud/Offline routing.
+- `terraform/` - IaC for GCP Cloud Run deployment.
 
 ## 🔄 Workflow Architecture
 ```mermaid

@@ -36,11 +36,11 @@ def safety_guardrail_agent(state: dict):
     # If the response contains any of our refusal strings, the guardrail was triggered
     if "For your safety and compliance" in bot_reply or "I cannot provide instructions" in bot_reply or "I cannot assist with modifications" in bot_reply:
         state["safety_cleared"] = False
-        state["verified_plan"] = f"⚠️ SAFETY GUARDRAIL TRIGGERED ⚠️\n{bot_reply}"
-        print("🚨 Unsafe topic detected! Halting workflow. 🚨")
+        state["verified_plan"] = f"[SAFETY GUARDRAIL TRIGGERED]\n{bot_reply}"
+        print("[!] Unsafe topic detected! Halting workflow. [!]")
     else:
         # It's safe to proceed
         state["safety_cleared"] = True
-        print("✅ Input is safe.")
+        print("[*] Input is safe.")
 
     return state

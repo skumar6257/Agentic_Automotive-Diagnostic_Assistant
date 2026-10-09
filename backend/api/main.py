@@ -5,6 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 from graph.workflow import build_workflow
 from infra.factory import factory
 
@@ -15,12 +16,14 @@ class DiagnosticRequest(BaseModel):
     dtc_code: str
     symptoms: str
     deployment_mode: str = "OFFLINE" # "CLOUD" or "OFFLINE"
+    model_name: Optional[str] = None # Optional override from UI
 
 @app.post("/diagnose")
 def diagnose(req: DiagnosticRequest):
     try:
         # Dynamically override the factory's deployment mode for this request!
         factory.deployment_mode = req.deployment_mode
+        factory.model_override = req.model_name
         os.environ["DEPLOYMENT_MODE"] = req.deployment_mode
 
         # Build the graph pipeline
@@ -45,4 +48,7 @@ def diagnose(req: DiagnosticRequest):
             "diagnostic_plan": plan
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_details = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"{str(e)} || Traceback: {error_details}")
+

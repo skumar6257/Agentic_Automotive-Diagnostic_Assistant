@@ -21,6 +21,13 @@ def get_vector_store():
         embeddings = VertexAIEmbeddings(
             model_name="text-embedding-004"
         )
+        config = factory.get_vector_db_config()
+        return QdrantVectorStore.from_existing_collection(
+            embedding=embeddings,
+            collection_name="repair_manuals",
+            url=config["url"],
+            api_key=config["api_key"]
+        )
     else:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model_kwargs = {'device': device}
@@ -37,11 +44,11 @@ def get_vector_store():
             encode_kwargs=encode_kwargs
         )
 
-    return QdrantVectorStore.from_existing_collection(
-        embedding=embeddings,
-        collection_name="repair_manuals",
-        path="data/processed/qdrant_db"
-    )
+        return QdrantVectorStore.from_existing_collection(
+            embedding=embeddings,
+            collection_name="repair_manuals",
+            path="data/processed/qdrant_db"
+        )
 
 def query_graph_agent(state: dict):
     """

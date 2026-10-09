@@ -64,13 +64,23 @@ def ingest_manuals():
 
     # 4. Ingest into Qdrant
     print("Generating embeddings and saving to Qdrant...")
-    os.makedirs("data/processed/qdrant_db", exist_ok=True)
-    qdrant = QdrantVectorStore.from_documents(
-        chunks,
-        embeddings,
-        path="data/processed/qdrant_db", # Saves DB to disk so we don't lose it!
-        collection_name="repair_manuals",
-    )
+    if factory.deployment_mode == "CLOUD":
+        config = factory.get_vector_db_config()
+        qdrant = QdrantVectorStore.from_documents(
+            chunks,
+            embeddings,
+            url=config["url"],
+            api_key=config["api_key"],
+            collection_name="repair_manuals",
+        )
+    else:
+        os.makedirs("data/processed/qdrant_db", exist_ok=True)
+        qdrant = QdrantVectorStore.from_documents(
+            chunks,
+            embeddings,
+            path="data/processed/qdrant_db", # Saves DB to disk so we don't lose it!
+            collection_name="repair_manuals",
+        )
     
     print("Vector Ingestion Complete!")
     return qdrant
