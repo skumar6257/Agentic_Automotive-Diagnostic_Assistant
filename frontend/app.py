@@ -10,7 +10,16 @@ st.set_page_config(page_title="AI Diagnostic Assistant", page_icon="🚗", layou
 st.title("🚗 Agentic Automotive Diagnostic Assistant")
 st.markdown("Enter the vehicle information and OBD-II codes below to generate an enterprise-grade diagnostic plan.")
 
-# Sidebar for Architecture Toggle
+# Initialize session state for telemetry and plan persistence
+if "last_telemetry" not in st.session_state:
+    st.session_state["last_telemetry"] = None
+if "last_plan" not in st.session_state:
+    st.session_state["last_plan"] = None
+
+
+# ==========================================
+# SIDEBAR: Architecture & Observability
+# ==========================================
 with st.sidebar:
     st.header("⚙️ Architecture Settings")
     st.markdown("Switch between Cloud AI and Local Edge Computing.")
@@ -33,15 +42,52 @@ with st.sidebar:
             index=0
         )
 
+    # Observability & Token Economics Panel
+    st.divider()
+    st.header("📊 Token Economics & Telemetry")
+
+    telemetry = st.session_state["last_telemetry"]
+    if telemetry:
+        token_usage = telemetry.get("token_usage", {})
+        total_tokens = token_usage.get("total_tokens", 0)
+        prompt_tokens = token_usage.get("prompt_tokens", 0)
+        completion_tokens = token_usage.get("completion_tokens", 0)
+        cost = token_usage.get("estimated_cost_usd", 0.0)
+        total_latency_ms = telemetry.get("total_latency_ms", 0.0)
+        # Metric Cards
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.metric("Tokens Used", f"{total_tokens:,}")
+        with col_m2:
+            if deployment_mode == "OFFLINE":
+                st.metric("Est. Cost", "$0.0000", help="Local hardware execution has zero API cost.")
+            else:
+                st.metric("Est. Cost", f"${cost:.5f}", help=f"Calculated using Google Vertex AI rates for {token_usage.get('model_name')}.")
+        st.caption(f"Prompt Tokens: {prompt_tokens:,} | Output Tokens: {completion_tokens:,}")
+        st.metric("Total Latency", f"{total_latency_ms / 1000:.2f} s", f"{total_latency_ms:.0f} ms")
+        # Node-by-Node Latency Breakdown
+        node_latencies = telemetry.get("node_latencies", {})
+        if node_latencies:
+            with st.expander("⏱️ Node Latency Breakdown", expanded=False):
+                for node, latency in node_latencies.items():
+                    st.write(f"**{node}**: `{latency:.1f} ms`")
+    else:
+        st.info("Submit a diagnostic query to view real-time token usage, cost, and node latencies.")
+
 # Main Form
 with st.form("diagnostic_form"):
     col1, col2 = st.columns(2)
     with col1:
-        vehicle_info = st.text_input("Vehicle Info", placeholder="e.g. 2018 Toyota Camry")
+        vehicle_info = st.text_input("Vehicle Info", value="2018 Toyota Camry", placeholder="e.g. 2018 Toyota Camry")
+    
     with col2:
-        dtc_code = st.text_input("DTC Code", placeholder="e.g. P0300")
-
-    symptoms = st.text_area("Symptoms & Customer Notes", placeholder="e.g. Engine misfire, rough idle...")
+        dtc_code = st.text_input("DTC Code", value="P0300", placeholder="e.g. P0300")
+    
+    symptoms = st.text_area(
+        "Symptoms & Customer Notes", 
+        value="Engine misfire, rough idle, check engine light flashing.",
+        placeholder="e.g. Engine misfire, rough idle..."
+    )    
     
     submit = st.form_submit_button("Generate Diagnostic Plan")
 
@@ -76,12 +122,40 @@ if submit:
 
                 if response.status_code == 200:
                     data = response.json()
+
+                    # Save telemetry to session state for sidebar persistence
+                    st.session_state["last_telemetry"] = data.get("telemetry")
+                    st.session_state["last_plan"] = data.get("diagnostic_plan", "No plan returned.")
+                    st.rerun()
+
                     st.subheader("📋 Verified Diagnostic Plan")
-                    st.markdown(data["diagnostic_plan"])
+                    st.markdown(data.get("diagnostic_plan", "No plan returned."))
+
+                    # # Quick Summary Metrics above feedback
+                    # t = data.get("telemetry", {})
+                    # u = t.get("token_usage", {})
+                    # c1, c2, c3 = st.columns(3)
+                    # c1.info(f"🪙 **Tokens**: {u.get('total_tokens', 0):,}")
+                    # c2.info(f"💰 **Est. Cost**: ${u.get('estimated_cost_usd', 0.0):.5f}" if deployment_mode == "CLOUD" else "💰 **Est. Cost**: $0.0000 (Local)")
+                    # c3.info(f"⚡ **Total Time**: {t.get('total_latency_ms', 0):.0f} ms")
+
                 else:
                     st.error(f"Backend Error: {response.text}")
 
             except Exception as e:
                 st.error(f"Failed to connect to backend. True Error: {str(e)}")
+
+# Display Verified Plan and Telemetry Banner (persists across reruns)
+if st.session_state.get("last_plan"):
+    st.subheader("📋 Verified Diagnostic Plan")
+    st.markdown(st.session_state["last_plan"])
+
+    t = st.session_state.get("last_telemetry", {})
+    u = t.get("token_usage", {})
+    c1, c2, c3 = st.columns(3)
+    c1.info(f"🪙 **Tokens**: {u.get('total_tokens', 0):,}")
+    c2.info(f"💰 **Est. Cost**: ${u.get('estimated_cost_usd', 0.0):.5f}" if deployment_mode == "CLOUD" else "💰 **Est. Cost**: $0.0000 (Local)")
+    c3.info(f"⚡ **Total Time**: {t.get('total_latency_ms', 0):.0f} ms")
+
 
                 

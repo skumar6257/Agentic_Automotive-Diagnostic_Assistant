@@ -11,12 +11,14 @@ An enterprise-grade, dual-mode (Cloud & Offline) AI Assistant for automotive dia
 *   **Dynamic LLM Selection**: Switch instantly between Vertex AI models (e.g. Gemini 2.5 Pro, Gemini 1.5 Flash) directly from the Streamlit UI with zero infrastructure redeployment.
 *   **Enterprise Safety Guardrails**: Integrated NeMo Guardrails intercept and block unsafe DIY advice (e.g., high-voltage EV battery handling without proper PPE).
 *   **Microservices & Managed Cloud**: A decoupled FastAPI backend, Streamlit frontend, and fully managed cloud databases (Neo4j AuraDB & Qdrant Cloud).
+*   **LLM Observability**: End-to-end tracing via LangSmith for both Cloud (Vertex AI) and Offline (Ollama/vLLM) modes.
 
 ## 🖥️ UI Showcase
 The frontend is built using Streamlit, providing an interactive interface for technicians to input DTC codes and symptoms, while seamlessly toggling between Cloud and Local Edge computing modes.
-![Technician Input](assets/UI_page1.png)
-![Diagnostic Reasoning](assets/UI_page2.png)
-![Retrieved Context](assets/UI_page3.png)
+![Technician Input](assets/New_UI_Page1.png)
+![Diagnostic Reasoning](assets/New_UI_Page2.png)
+![Retrieved Context](assets/New_UI_Page3.png)
+![LLM Observability](assets/New_UI_Page4.png)
 
 ## 🏗 Architecture (Dual-Mode)
 
@@ -101,6 +103,19 @@ To modify safety rules (e.g., preventing high-voltage or emissions bypass advice
   ```bash
   python -m vllm.entrypoints.openai.api_server --model meta-llama/Meta-Llama-3-8B-Instruct --enable-prefix-caching
   ```
+
+**LLM Observability & LangSmith Tracing**
+The application supports end-to-end tracing via **LangSmith** for both Cloud (Vertex AI) and Offline (Ollama/vLLM) modes:
+
+1. Create a free account at [smith.langchain.com](https://smith.langchain.com). Create a project dashboard, and generate an API key.
+2. In `.env`, enable tracing:
+   ```dotenv
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+   LANGCHAIN_API_KEY=lsv2_pt_your_actual_key_here
+   LANGCHAIN_PROJECT=agentic-automotive-diagnostic
+   ```
+3. If running completely offline or without an API key, keep `LANGCHAIN_TRACING_V2=false`. The application automatically detects this and avoids making external network requests.
 
 ### 6. Running the Application (FastAPI & Streamlit UI)
 If you are running in OFFLINE mode on a CPU, you must start your local LLM engine first:

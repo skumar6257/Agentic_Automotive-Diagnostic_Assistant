@@ -1,4 +1,7 @@
 import os
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from typing import Dict, Any
 from dotenv import load_dotenv
 import torch
@@ -20,6 +23,36 @@ class InfraFactory:
             raise ValueError(f"Invalid DEPLOYMENT_MODE: {self.deployment_mode}. Must be CLOUD or OFFLINE.")
         else:
             print(f"--- Initializing {self.deployment_mode} Mode ---")
+
+        # Setup Observability (LangSmith & Telemetry)
+        self._init_observability()
+
+    def _init_observability(self):
+        """
+        Initializes LangSmith tracing safely.
+        Works in both CLOUD and OFFLINE modes. If no API key is provided,
+        it cleanly disables tracing without raising errors.
+        """
+
+        tracing_enabled = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
+        api_key = os.getenv("LANGCHAIN_API_KEY", "").strip()
+
+        if tracing_enabled and api_key:
+
+            os.environ["LANGCHAIN_TRACING_V2"] = "true"
+            os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+            os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "agentic-automotive-diagnostic")
+            os.environ["LANGCHAIN_API_KEY"] = api_key
+            print(f"🔍 [Observability] LangSmith tracing ENABLED (Project: {os.environ['LANGCHAIN_PROJECT']})")
+        
+        elif tracing_enabled and not api_key:
+            os.environ["LANGCHAIN_TRACING_V2"] = "false"
+            print("[Observability] LANGCHAIN_TRACING_V2 is 'true', but LANGCHAIN_API_KEY is empty. Tracing is disabled.")
+        
+        else:
+            # Explicitly turn off tracing to prevent background retry warnings
+            os.environ["LANGCHAIN_TRACING_V2"] = "false"
+            print("[Observability] LangSmith tracing is OFF. (Local in-app telemetry will still operate).")
         
     def get_llm_config(self) -> Dict[str, Any]:
         """Return LLM configuration based on deployment mode."""
