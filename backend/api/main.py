@@ -1,7 +1,9 @@
 import os
 import sys
-# Ensure we can import from the main project
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Ensure project root is always in sys.path regardless of execution directory
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel

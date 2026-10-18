@@ -118,11 +118,13 @@ def critique_agent(state: dict):
     state["critique_feedback"] = feedback
 
     # Simple routing logic
+        # Simple routing logic
     if "APPROVED" in feedback.upper():
-        state["safety_cleared"] = True
+        state["is_approved"] = True
+        state["requires_more_info"] = False
         state["verified_plan"] = state["preliminary_plan"]
     else:
-        state["safety_cleared"] = False
+        state["is_approved"] = False
         state["requires_more_info"] = True
 
     return state

@@ -24,5 +24,6 @@ class DiagnosticState(TypedDict):
     verified_plan: str
     
     # Routing Flags
-    safety_cleared: bool
-    requires_more_info: bool
+    safety_cleared: bool      # True = Input passed NeMo safety guardrails
+    is_approved: bool         # True = Critique agent verified the repair plan
+    requires_more_info: bool  # True = Critique found missing manuals/specs

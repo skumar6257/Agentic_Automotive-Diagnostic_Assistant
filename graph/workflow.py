@@ -57,11 +57,11 @@ def build_workflow():
     
     # 5. Define the Conditional Edge (The loop!)
     def routing_logic(state: DiagnosticState):
-        if state.get("safety_cleared"):
-            print("-> ROUTING: Safety Cleared. Ending workflow.")
+        if state.get("is_approved"):
+            print("-> ROUTING: Plan Approved by Master Tech. Ending workflow.")
             return "end"
         elif state.get("requires_more_info") and not state.get("web_search_results"):
-            print("-> ROUTING: Missing info. Routing to Web Search Fallback.")
+            print("-> ROUTING: Missing info in manuals. Routing to Web Search Fallback.")
             return "web_search"
         else:
             print("-> ROUTING: Plan Rejected. Looping back to Planner.")

@@ -41,8 +41,8 @@ def run_evaluation():
     answers = []
     contexts = []
 
-    for q in questions:
-        print(f"\nEvaluating Query: {q}")
+    for idx, q in enumerate(questions):
+        print(f"\nEvaluating Query {idx+1}/{len(questions)}: {q}")
         initial_state = {
             "vehicle_info": "2018 Toyota Camry",
             "dtc_code": dtc_codes[idx],
@@ -56,7 +56,6 @@ def run_evaluation():
             ans = final_state.get("verified_plan", "No plan generated")
             manuals = final_state.get("retrieved_manuals", [])
             ctx = "\n".join(manuals) if manuals else "No context retrieved"
-
         except Exception as e:
             ans = f"Error: {e}"
             ctx = ""
@@ -65,15 +64,15 @@ def run_evaluation():
         # Ragas expects a list of context strings per answer
         contexts.append([ctx]) 
 
-        # 3. Format the data for Ragas
-        data = {
-            "question": questions,
-            "answer": answers,
-            "contexts": contexts,
-            "ground_truth": ground_truths
-        }
+    # 3. Format the data for Ragas (OUTSIDE the loop after all queries complete)
+    data = {
+        "question": questions,
+        "answer": answers,
+        "contexts": contexts,
+        "ground_truth": ground_truths
+    }
 
-        dataset = Dataset.from_dict(data)
+    dataset = Dataset.from_dict(data)
 
     # 4. Initialize our Local LLM and Embeddings to act as the "Judge"
     print("\n--- [Ragas] Initializing the AI Judge ---")
