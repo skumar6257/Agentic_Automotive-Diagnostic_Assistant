@@ -13,32 +13,33 @@ from infra.cost_calculator import calculate_token_cost
 from langchain_google_vertexai import ChatVertexAI
 from langchain_openai import ChatOpenAI
 
-def get_llm(cache_id=None):
-    config = factory.get_llm_config() 
+def get_llm(cache_id=None, tier: str = "reasoning"):
+    """
+    Returns dynamically routed LLM instance based on deployment mode and tier.
+    - tier='reasoning': Deep reasoning (Gemini 2.5 Pro / Llama 3.1)
+    - tier='fast': High-speed routing & HyDE (Gemini 1.5 Flash / Llama 3.2)
+    """
+    config = factory.get_llm_config(tier=tier) 
     if factory.deployment_mode == 'CLOUD':
-        # Base configuration for Gemini
         kwargs = {
             "model_name": config["model_name"],
             "project": config["project_id"],
             "location": config["region"],
             "temperature": 0.2
         }
-        
-        # If a KV Cache ID was provided, inject it!
         if cache_id:
             kwargs["cached_content"] = cache_id
             print(f"-> Injecting Vertex KV Cache: {cache_id}")
         
         return ChatVertexAI(**kwargs)
     else:
-        # Local models (vLLM, Ollama, LMStudio) expose an OpenAI-compatible API
         return ChatOpenAI(
             base_url=config["base_url"],
             api_key=config["api_key"],
             model=config["model_name"],
             temperature=0.2
         )
-
+        
 def update_token_metrics(state: dict, response, model_name: str):
     """
     Extracts usage_metadata from LangChain AIMessage response and 

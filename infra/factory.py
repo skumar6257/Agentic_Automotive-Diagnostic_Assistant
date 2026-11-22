@@ -54,11 +54,18 @@ class InfraFactory:
             os.environ["LANGCHAIN_TRACING_V2"] = "false"
             print("[Observability] LangSmith tracing is OFF. (Local in-app telemetry will still operate).")
         
-    def get_llm_config(self) -> Dict[str, Any]:
-        """Return LLM configuration based on deployment mode."""
+    def get_llm_config(self, tier: str = "reasoning") -> Dict[str, Any]:
+        """
+        Return LLM configuration based on deployment mode and tier.
+        - tier='reasoning': Heavy reasoning model (Gemini 2.5 Pro / Llama 3.1)
+        - tier='fast': Ultra-fast, low-cost model (Gemini 1.5 Flash / Llama 3.2)
+        """
         if self.deployment_mode == "CLOUD":
-            # Use dynamic override if provided, else fallback to env, else hardcode
-            model = self.model_override if self.model_override else os.getenv("VERTEX_MODEL_NAME", "gemini-2.5-pro")
+            if tier == "fast":
+                model = os.getenv("VERTEX_FAST_MODEL_NAME", "gemini-1.5-flash-001")
+            else:
+                model = self.model_override if self.model_override else os.getenv("VERTEX_MODEL_NAME", "gemini-2.5-pro")
+            
             return {
                 "provider": "vertex_ai",
                 "model_name": model,
@@ -67,8 +74,7 @@ class InfraFactory:
             }
         else:
             device = "cuda" if torch.cuda.is_available() else "cpu"
-            print(f"--- Using Device: {device} ---")
-            if device =='cuda':
+            if device == 'cuda':
                 return {
                     "provider": "vllm",
                     "base_url": os.getenv("VLLM_API_BASE_URL", "http://localhost:8000/v1"),
@@ -76,10 +82,11 @@ class InfraFactory:
                     "api_key": os.getenv("VLLM_API_KEY", "local")
                 }
             else:
+                local_model = os.getenv("OLLAMA_FAST_MODEL_NAME", "llama3.2") if tier == "fast" else os.getenv("OLLAMA_LOCAL_MODEL_NAME", "llama3.1")
                 return {
                     "provider": "ollama",
                     "base_url": os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434/v1"),
-                    "model_name": os.getenv("OLLAMA_LOCAL_MODEL_NAME", "llama3.2"),
+                    "model_name": local_model,
                     "api_key": os.getenv("OLLAMA_API_KEY", "ollama")
                 }
     

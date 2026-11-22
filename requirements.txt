@@ -4,7 +4,8 @@ langchain==1.4.3
 langchain-community==0.4.2
 langchain-qdrant==1.1.0
 langchain-huggingface==1.2.2
-neo4j==6.3.1
+llama-index-core>=0.14.0
+llama-index-graph-stores-neo4j>=0.9.0
 qdrant-client==1.19.1
 langchain-google-vertexai==3.2.4
 pypdf==6.19.0

@@ -12,6 +12,9 @@ from agents.retrievers import query_vector_agent, query_graph_agent
 from agents.planner import diagnostic_planner_agent, critique_agent
 from agents.search import web_search_agent
 from agents.guardrail import safety_guardrail_agent
+from agents.router import semantic_router_agent, fast_informational_agent
+from agents.hyde import hyde_expansion_agent
+from agents.reranker import cross_encoder_rerank_agent
 import time
 
 def timed_node(node_name: str, node_func):
@@ -51,39 +54,60 @@ def build_workflow():
 
     # 2. Add all our Agent Nodes wrapped with the timing instrumentation
     workflow.add_node("safety_guardrail", timed_node("safety_guardrail", safety_guardrail_agent))
+    workflow.add_node("semantic_router", timed_node("semantic_router", semantic_router_agent))
+    workflow.add_node("fast_informational", timed_node("fast_informational", fast_informational_agent))
     workflow.add_node("graph_retriever", timed_node("graph_retriever", query_graph_agent))
+    workflow.add_node("hyde_expansion", timed_node("hyde_expansion", hyde_expansion_agent))
     workflow.add_node("vector_retriever", timed_node("vector_retriever", query_vector_agent))
+    workflow.add_node("reranker", timed_node("reranker", cross_encoder_rerank_agent))
     workflow.add_node("planner", timed_node("planner", diagnostic_planner_agent))
     workflow.add_node("critique", timed_node("critique", critique_agent))
     workflow.add_node("web_search", timed_node("web_search", web_search_agent))
 
     # 3. Define the Edges (The Flow)
     workflow.set_entry_point("safety_guardrail")
-    workflow.add_edge("graph_retriever","vector_retriever")
-    workflow.add_edge("vector_retriever","planner")
-    workflow.add_edge("planner","critique")
-    # After a web search, always go back to the planner to rewrite the plan
-    workflow.add_edge("web_search", "planner")
 
     def guardrail_router(state: DiagnosticState):
-        """
-        Decides whether to continue to the retriever (safe) or end (unsafe).
-        """
         if state.get("safety_cleared"):
-            print("-> Guardrail: Input is safe. Proceeding to retriever.")
-            return "graph_retriever"  # Go to the retriever node
+            print("-> Guardrail: Input is safe. Proceeding to Semantic Router.")
+            return "semantic_router"
         else:
             print("-> Guardrail: Unsafe input detected. Halting workflow.")
-            return "end"  # End the workflow
-
+            return "end"
+    
     workflow.add_conditional_edges(
         "safety_guardrail",
         guardrail_router,
         {
-            "graph_retriever": "graph_retriever",
+            "semantic_router": "semantic_router",
             "end": END
         }
     )
+
+    # 4. Define Semantic Complexity Routing
+    def complexity_router(state: DiagnosticState):
+        if state.get("query_complexity") == "SIMPLE":
+            return "fast_informational"
+        else:
+            return "graph_retriever"
+    workflow.add_conditional_edges(
+        "semantic_router",
+        complexity_router,
+        {
+            "fast_informational": "fast_informational",
+            "graph_retriever": "graph_retriever"
+        }
+    )
+    # Simple path ends immediately
+    workflow.add_edge("fast_informational", END)
+
+    workflow.add_edge("graph_retriever", "hyde_expansion")
+    workflow.add_edge("hyde_expansion", "vector_retriever")
+    workflow.add_edge("vector_retriever", "reranker")
+    workflow.add_edge("reranker", "planner")
+    workflow.add_edge("planner","critique")
+    # After a web search, always go back to the planner to rewrite the plan
+    workflow.add_edge("web_search", "planner")
     
     # 5. Define the Conditional Edge (The loop!)
     def routing_logic(state: DiagnosticState):
