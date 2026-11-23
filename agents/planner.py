@@ -4,11 +4,13 @@ Agent that plans the diagnostic process
 
 import os
 import sys
+import re
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from langchain_core.prompts import ChatPromptTemplate
 from infra.factory import factory
 from infra.cost_calculator import calculate_token_cost
+from agents.thought_parser import parse_thought_and_content
 
 from langchain_google_vertexai import ChatVertexAI
 from langchain_openai import ChatOpenAI
@@ -141,24 +143,36 @@ def diagnostic_planner_agent(state: dict):
 
 def critique_agent(state: dict):
     """
-    Agent Node: Reviews the preliminary plan against the manuals to ensure no steps 
-    or torque specs were hallucinated.
+    Agent Node: Rigorously verifies the synthesized plan against official manuals.
+    Scores the plan from 1 to 10 for factual precision and safety.
+    Approves ONLY if Score >= 8.
     """
-    print("--- [Critique Agent] Verifying Plan against Source Manuals ---")
+    print("--- [Critique Agent] Scoring Plan Accuracy & Safety (1-10 Scale) ---")
 
-    llm = get_llm()
+    if "reasoning_traces" not in state or state["reasoning_traces"] is None:
+        state["reasoning_traces"] = {}
+    llm = get_llm(tier="reasoning")
 
     prompt = ChatPromptTemplate.from_messages([
-        # ("system", "You are a Senior Master Technician. Review the proposed repair plan against the official manuals. Reply 'APPROVED' if the plan strictly follows the manual. If it hallucinates or misses critical safety specs, reply 'REJECTED' and explain why."),
-        ("system", "You are a Senior Master Technician reviewing a proposed diagnostic plan against official manuals. \n\n1. If the plan hallucinated torque specs or steps not in the manual, reply 'REJECTED' and explain why.\n2. If the plan safely states that more official manuals are required, reply 'APPROVED'.\n3. If the plan strictly follows the provided manual, reply 'APPROVED'."),
-        ("human", """
-        Official Manuals: {manuals}
-        
-        Proposed Plan:
+        ("system", """You are a Senior Automotive Quality & Safety Inspector.
+        Your responsibility is to mathematically evaluate the proposed diagnostic plan against the official OEM repair manuals.
+        EVALUATION CRITERIA (1-10 Scale):
+        - 9-10 (Flawless): Plan strictly matches official manual procedures, includes exact OEM torque specs (e.g. ft-lbs or Nm), proper safety pre-checks (e.g. battery disconnect), and has ZERO hallucinations.
+        - 8 (Acceptable): Plan is factually accurate, safe, and logical. If official manuals are brief, it safely advises the technician without hallucinating specs.
+        - 1-7 (Rejected): Plan hallucinated torque specs, missed critical safety warnings (e.g. high-voltage or fuel depressurization), or contradicts OEM manuals.
+        MANDATORY INSTRUCTIONS:
+        1. First, provide your reasoning inside private <thought>...</thought> tags:
+        - Audit each step against the provided manual excerpts.
+        - Point out any hallucinated torque specs or skipped safety steps.
+        2. After </thought>, your output MUST follow this exact format:
+        SCORE: <integer between 1 and 10>
+        STATUS: <APPROVED if score >= 8 else REJECTED>
+        FEEDBACK: <Actionable advice on what must be corrected or why it passed>"""),
+        ("human", """Official OEM Manuals Context:
+        {manuals}
+        Proposed Diagnostic Plan:
         {plan}
-        
-        Review the plan.
-        """)
+        Audit and score the plan:""")
     ])
 
     chain = prompt | llm
@@ -172,16 +186,25 @@ def critique_agent(state: dict):
     llm_config = factory.get_llm_config()
     update_token_metrics(state, response, llm_config.get("model_name", "unknown"))
 
-    feedback = response.content
+    # Extract thought and cleaned feedback
+    thought_trace, feedback = parse_thought_and_content(response.content)
+    state["reasoning_traces"]["critique"] = thought_trace
     state["critique_feedback"] = feedback
 
-    # Simple routing logic
-    if "APPROVED" in feedback.upper():
+    # Extract numeric score using regex
+    score_match = re.search(r"SCORE:\s*(\d+)", feedback, re.IGNORECASE)
+    critic_score = int(score_match.group(1)) if score_match else 7
+    state["critic_score"] = critic_score
+    print(f"-> [Critique Agent] Quality Score: {critic_score}/10")
+    # Routing evaluation: Threshold is 8/10
+    if critic_score >= 8 or "STATUS: APPROVED" in feedback.upper():
         state["is_approved"] = True
         state["requires_more_info"] = False
-        state["verified_plan"] = state["preliminary_plan"]
+        # Append verified badge with score to final plan
+        state["verified_plan"] = f"### 🛡️ Verified Diagnostic Plan (Quality Score: {critic_score}/10)\n\n" + state["preliminary_plan"]
+        print(f"-> [Critique Agent] Plan PASSED with score {critic_score}/10.")
     else:
         state["is_approved"] = False
         state["requires_more_info"] = True
-
+        print(f"-> [Critique Agent] Plan REJECTED (Score: {critic_score}/10). Initiating replanning loop.")
     return state

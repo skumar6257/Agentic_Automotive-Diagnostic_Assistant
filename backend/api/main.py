@@ -66,7 +66,7 @@ def diagnose(req: DiagnosticRequest):
             "symptoms": req.symptoms
         }
         
-        config = {"recursion_limit": 10}
+        config = {"recursion_limit": 20}
         
         # Execute the agentic workflow
         final_state = workflow.invoke(initial_state, config)

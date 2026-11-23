@@ -21,10 +21,15 @@ class DiagnosticState(TypedDict):
     # From Web Search Agent
     web_search_results: str
 
-    # Agent Reasoning
-    preliminary_plan: str
-    critique_feedback: str
-    verified_plan: str
+    # Agent Reasoning (Phase 3 Multi-Agent)
+    supervisor_decision: str                # "ELECTRICAL", "MECHANICAL", or "BOTH"
+    electrical_report: str                  # Technical findings from Electrical Specialist
+    mechanical_report: str                  # Technical findings from Mechanical Specialist
+    preliminary_plan: str                   # Synthesized plan combining specialist reports
+    critique_feedback: str                  # Actionable critique from Master Inspector
+    critic_score: int                       # Quantitative score (1-10)
+    verified_plan: str                      # Final approved plan
+    reasoning_traces: Dict[str, str]        # Private <thought> blocks extracted per agent
     
     # Routing Flags
     safety_cleared: bool      # True = Input passed NeMo safety guardrails

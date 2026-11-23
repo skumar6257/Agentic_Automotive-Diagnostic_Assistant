@@ -59,7 +59,8 @@ def get_property_graph_store() -> Neo4jPropertyGraphStore:
     return Neo4jPropertyGraphStore(
         username=config["username"],
         password=config["password"],
-        url=config["uri"]
+        url=config["uri"],
+        refresh_schema=False
     )
 
 def query_graph_agent(state: dict):

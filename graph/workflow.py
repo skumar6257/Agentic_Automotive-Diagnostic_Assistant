@@ -15,6 +15,8 @@ from agents.guardrail import safety_guardrail_agent
 from agents.router import semantic_router_agent, fast_informational_agent
 from agents.hyde import hyde_expansion_agent
 from agents.reranker import cross_encoder_rerank_agent
+from agents.specialists import electrical_specialist_agent,mechanical_specialist_agent
+from agents.supervisor import supervisor_agent,master_synthesizer_agent
 import time
 
 def timed_node(node_name: str, node_func):
@@ -35,8 +37,14 @@ def timed_node(node_name: str, node_func):
         
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
         
-        # Record latency
-        updated_state["node_latencies"][node_name] = elapsed_ms
+        # Record latency (preserve multiple iterations in reflection loops)
+        key_name = node_name
+        loop_idx = 2
+        while key_name in updated_state["node_latencies"]:
+            key_name = f"{node_name} (loop {loop_idx})"
+            loop_idx += 1
+
+        updated_state["node_latencies"][key_name] = elapsed_ms
         updated_state["total_latency_ms"] = round(
             sum(updated_state["node_latencies"].values()), 2
         )
@@ -60,7 +68,13 @@ def build_workflow():
     workflow.add_node("hyde_expansion", timed_node("hyde_expansion", hyde_expansion_agent))
     workflow.add_node("vector_retriever", timed_node("vector_retriever", query_vector_agent))
     workflow.add_node("reranker", timed_node("reranker", cross_encoder_rerank_agent))
-    workflow.add_node("planner", timed_node("planner", diagnostic_planner_agent))
+    
+    
+    # Phase 3 Multi-Agent Nodes
+    workflow.add_node("supervisor", timed_node("supervisor", supervisor_agent))
+    workflow.add_node("electrical_specialist", timed_node("electrical_specialist", electrical_specialist_agent))
+    workflow.add_node("mechanical_specialist", timed_node("mechanical_specialist", mechanical_specialist_agent))
+    workflow.add_node("master_synthesizer", timed_node("master_synthesizer", master_synthesizer_agent))
     workflow.add_node("critique", timed_node("critique", critique_agent))
     workflow.add_node("web_search", timed_node("web_search", web_search_agent))
 
@@ -104,31 +118,82 @@ def build_workflow():
     workflow.add_edge("graph_retriever", "hyde_expansion")
     workflow.add_edge("hyde_expansion", "vector_retriever")
     workflow.add_edge("vector_retriever", "reranker")
-    workflow.add_edge("reranker", "planner")
-    workflow.add_edge("planner","critique")
-    # After a web search, always go back to the planner to rewrite the plan
-    workflow.add_edge("web_search", "planner")
+    workflow.add_edge("reranker", "supervisor")
+
+    # 6. Supervisor Specialist Dispatch Routing
+    def supervisor_dispatch_router(state: DiagnosticState):
+        decision = state.get("supervisor_decision", "BOTH")
+        print(f"-> [Workflow Router] Supervisor dispatched triage to: {decision}")
+        if decision == "MECHANICAL":
+            return "mechanical_specialist"
+        else:
+            # Both 'ELECTRICAL' and 'BOTH' start with the electrical specialist
+            return "electrical_specialist"
     
-    # 5. Define the Conditional Edge (The loop!)
-    def routing_logic(state: DiagnosticState):
+    workflow.add_conditional_edges(
+        "supervisor",
+        supervisor_dispatch_router,
+        {
+            "electrical_specialist": "electrical_specialist",
+            "mechanical_specialist": "mechanical_specialist"
+        }
+    )
+
+    # Electrical specialist routing (if BOTH, proceed to mechanical; else go to synthesizer)
+    def electrical_followup_router(state: DiagnosticState):
+        decision = state.get("supervisor_decision", "BOTH")
+        if decision == "BOTH":
+            return "mechanical_specialist"
+        else:
+            return "master_synthesizer"
+    
+    workflow.add_conditional_edges(
+        "electrical_specialist",
+        electrical_followup_router,
+        {
+            "mechanical_specialist": "mechanical_specialist",
+            "master_synthesizer": "master_synthesizer"
+        }
+    )
+
+
+    # Mechanical specialist always leads into synthesis
+    workflow.add_edge("mechanical_specialist", "master_synthesizer")
+    workflow.add_edge("master_synthesizer", "critique")
+
+    # After a web search, return to supervisor to reassess
+    workflow.add_edge("web_search", "supervisor")
+    
+    # 7. Quality Critique & Reflection Loop (Score >= 8, Max 1 Replan Loop)
+    def critique_routing_logic(state: DiagnosticState):
+        retries = state.get("replan_count", 0)
+
         if state.get("is_approved"):
-            print("-> ROUTING: Plan Approved by Master Tech. Ending workflow.")
+            print("-> ROUTING: Plan Approved by Inspector (Score >= 8). Ending workflow.")
             return "end"
         elif state.get("requires_more_info") and not state.get("web_search_results"):
             print("-> ROUTING: Missing info in manuals. Routing to Web Search Fallback.")
             return "web_search"
-        else:
-            print("-> ROUTING: Plan Rejected. Looping back to Planner.")
+        elif retries < 1:
+            state["replan_count"] = retries + 1
+            print(f"-> ROUTING: Plan Rejected (Attempt {retries + 1}/2). Looping back to Supervisor with critique.")
             return "replan"
+        else:
+            print("-> ROUTING: Max reflection loops reached (1/1). Finalizing best-effort plan.")
+            # Safeguard: Finalize plan with inspector score badge so pipeline terminates cleanly
+            state["is_approved"] = True
+            critic_score = state.get("critic_score", 6)
+            state["verified_plan"] = f"### ⚠️ Best-Effort Diagnostic Plan (Quality Score: {critic_score}/10)\n\n" + state.get("preliminary_plan", "")
+            return "end"
 
     # Hook the conditional logic to the output of the Critique node
     workflow.add_conditional_edges(
         "critique",
-        routing_logic,
+        critique_routing_logic,
         {
             "end": END,
             "web_search": "web_search",
-            "replan": "planner"
+            "replan": "supervisor"
         }
     )
 
